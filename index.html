@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AI Bisa - Chat Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            color: #333;
+        }
+        
+        .header p {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .message {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .user {
+            background: #667eea;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .assistant {
+            background: white;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .input-area {
+            background: white;
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #e5e5e5;
+        }
+        
+        .input-area textarea {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+            max-height: 100px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .input-area textarea:focus {
+            border-color: #667eea;
+        }
+        
+        .input-area button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .input-area button:active {
+            transform: scale(0.95);
+        }
+        
+        .input-area button:disabled {
+            background: #ccc;
+            transform: none;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e5e5e5;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .settings-panel {
+            background: white;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e5;
+            font-size: 13px;
+        }
+        
+        .settings-panel input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 200px;
+            font-size: 12px;
+        }
+        
+        .server-status {
+            font-size: 11px;
+            color: #666;
+            margin-top: 6px;
+        }
+        
+        .clear-btn {
+            background: #ef4444;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .clear-btn:active {
+            background: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 AI Bisa</h1>
+        <p>Asisten AI pribadimu</p>
+    </div>
+    
+    <div class="settings-panel">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <span>🔗 Server:</span>
+            <input type="text" id="serverUrl" placeholder="http://192.168.x.x:3000" value="http://localhost:3000">
+            <button id="saveServerBtn" style="background:#667eea; padding:6px 12px; border-radius:8px;">Simpan</button>
+            <button id="clearChatBtn" class="clear-btn">Hapus Chat</button>
+        </div>
+        <div class="server-status" id="serverStatus">
+            ⚪ Belum terhubung
+        </div>
+    </div>
+    
+    <div class="chat-container" id="chatContainer">
+        <div class="message assistant">
+            Halo! Saya AI Bisa, asisten pribadimu. <br><br>
+            Silakan ketik pesan untuk memulai percakapan.
+        </div>
+    </div>
+    
+    <div class="input-area">
+        <textarea id="messageInput" placeholder="Ketik pesan..." rows="1" maxlength="500"></textarea>
+        <button id="sendBtn">Kirim</button>
+    </div>
+
+    <script>
+        // Konfigurasi
+        let sessionId = localStorage.getItem('sessionId') || '';
+        let serverUrl = localStorage.getItem('serverUrl') || 'http://localhost:3000';
+        let isLoading = false;
+        
+        // DOM Elements
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const serverUrlInput = document.getElementById('serverUrl');
+        const serverStatusDiv = document.getElementById('serverStatus');
+        
+        // Set value server URL
+        serverUrlInput.value = serverUrl;
+        
+        // Inisialisasi
+        async function init() {
+            await checkServerConnection();
+            
+            if (!sessionId) {
+                await createNewSession();
+            } else {
+                await loadHistory();
+            }
+        }
+        
+        // Cek koneksi server
+        async function checkServerConnection() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(`${serverUrl}/health`, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    serverStatusDiv.innerHTML = `🟢 Terhubung ke server | Sesi: ${data.activeSessions || '?'} aktif`;
+                    return true;
+                }
+            } catch (error) {
+                serverStatusDiv.innerHTML = `🔴 Server tidak tersedia di ${serverUrl}. Pastikan server berjalan di Termux.`;
+                return false;
+            }
+            return false;
+        }
+        
+        // Buat sesi baru
+        async function createNewSession() {
+            try {
+                const response = await fetch(`${serverUrl}/session/new`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    sessionId = data.sessionId;
+                    localStorage.setItem('sessionId', sessionId);
+                    console.log('Session created:', sessionId);
+                }
+            } catch (error) {
+                console.error('Create session error:', error);
+            }
+        }
+        
+        // Load history chat
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${serverUrl}/session/${sessionId}/history`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Clear container except first message
+                    const container = chatContainer;
+                    container.innerHTML = '';
+                    
+                    if (data.history && data.history.length > 0) {
+                        data.history.forEach(msg => {
+                            addMessageToUI(msg.role, msg.content);
+                        });
+                    } else {
+                        // Add welcome message
+                        addMessageToUI('assistant', 'Halo! Saya AI Bisa, asisten pribadimu. Silakan ketik pesan untuk memulai percakapan.');
+                    }
+                }
+            } catch (error) {
+                console.error('Load history error:', error);
+            }
+        }
+        
+        // Add message to UI
+        function addMessageToUI(role, content) {
+            const div = document.createElement('div');
+            div.className = `message ${role === 'user' ? 'user' : 'assistant'}`;
+            
+            // Format content (simple markdown)
+            let formattedContent = content;
+            formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formattedContent = formattedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            formattedContent = formattedContent.replace(/`(.*?)`/g, '<code style="background:#f0f0f0;padding:2px 4px;border-radius:4px;">$1</code>');
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
+            
+            div.innerHTML = formattedContent;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Send message
+        async function sendMessage() {
+            if (isLoading) return;
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Clear input
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            
+            // Add user message to UI
+            addMessageToUI('user', message);
+            
+            // Show loading
+            isLoading = true;
+            sendBtn.disabled = true;
+            
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.id = 'loadingIndicator';
+            loadingDiv.innerHTML = '<div class="spinner"></div> AI sedang mengetik...';
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 menit timeout
+                
+                const response = await fetch(`${serverUrl}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: message, 
+                        sessionId: sessionId 
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                // Remove loading
+                loadingDiv.remove();
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Gagal mengirim pesan');
+                }
+                
+                const data = await response.json();
+                addMessageToUI('assistant', data.reply);
+                
+                // Update sessionId if new
+                if (data.sessionId && data.sessionId !== sessionId) {
+                    sessionId = data.sessionId;
+                    localStorage.setItem('sessionId', sessionId);
+                }
+                
+                // Update status with response time
+                if (data.responseTime) {
+                    serverStatusDiv.innerHTML = `🟢 Terhubung | Response: ${data.responseTime}`;
+                    setTimeout(() => {
+                        serverStatusDiv.innerHTML = `🟢 Terhubung ke server | Sesi aktif`;
+                    }, 3000);
+                }
+                
+            } catch (error) {
+                loadingDiv.remove();
+                
+                let errorMsg = 'Maaf, terjadi kesalahan. ';
+                if (error.name === 'AbortError') {
+                    errorMsg = 'Waktu habis. Server terlalu lama merespons. Pastikan Ollama berjalan dan coba lagi.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMsg = 'Tidak dapat terhubung ke server. Pastikan:\n1. Server berjalan di Termux\n2. IP dan port benar\n3. HP dan server dalam jaringan yang sama';
+                } else {
+                    errorMsg = error.message;
+                }
+                
+                addMessageToUI('assistant', '⚠️ ' + errorMsg);
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        // Reset chat (clear history)
+        async function resetChat() {
+            if (isLoading) return;
+            
+            try {
+                const response = await fetch(`${serverUrl}/session/${sessionId}/reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    // Clear UI
+                    chatContainer.innerHTML = '';
+                    addMessageToUI('assistant', '🧹 Chat history telah dihapus. Mulai percakapan baru!');
+                    
+                    // Create new session
+                    await createNewSession();
+                }
+            } catch (error) {
+                console.error('Reset error:', error);
+                addMessageToUI('assistant', '⚠️ Gagal mereset chat. Coba lagi nanti.');
+            }
+        }
+        
+        // Save server URL
+        function saveServerUrl() {
+            const newUrl = serverUrlInput.value.trim();
+            if (newUrl) {
+                // Remove trailing slash
+                serverUrl = newUrl.replace(/\/$/, '');
+                localStorage.setItem('serverUrl', serverUrl);
+                
+                // Reset session
+                sessionId = '';
+                localStorage.removeItem('sessionId');
+                
+                // Reconnect
+                checkServerConnection().then(() => {
+                    init();
+                });
+                
+                addMessageToUI('assistant', `🔌 Server diubah ke ${serverUrl}. Menghubungkan ulang...`);
+            }
+        }
+        
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        sendBtn.addEventListener('click', sendMessage);
+        document.getElementById('saveServerBtn').addEventListener('click', saveServerUrl);
+        document.getElementById('clearChatBtn').addEventListener('click', resetChat);
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>
